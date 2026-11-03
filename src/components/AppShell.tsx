@@ -3,13 +3,27 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Layout, Menu, Button, Space, Avatar, Dropdown, Tag, Grid } from "antd";
+import {
+  Layout,
+  Menu,
+  Button,
+  Space,
+  Avatar,
+  Dropdown,
+  Tag,
+  Grid,
+  Modal,
+  Form,
+  Input,
+  App,
+} from "antd";
 import {
   UserOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   HomeOutlined,
+  LockOutlined,
 } from "@ant-design/icons";
 import { ROLE_LABEL, type UserRole } from "@/types/auth";
 
@@ -33,9 +47,13 @@ export default function AppShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { message } = App.useApp();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.lg;
   const [collapsed, setCollapsed] = useState(isMobile);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwForm] = Form.useForm();
 
   useEffect(() => {
     setCollapsed(isMobile);
@@ -45,6 +63,30 @@ export default function AppShell({
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
+  };
+
+  const changePassword = async () => {
+    const values = await pwForm.validateFields();
+    setPwSaving(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        message.error(d.error ?? "Đổi mật khẩu thất bại");
+        return;
+      }
+      message.success("Đổi mật khẩu thành công");
+      setPwOpen(false);
+      pwForm.resetFields();
+    } catch {
+      message.error("Lỗi hệ thống");
+    } finally {
+      setPwSaving(false);
+    }
   };
 
   const selectedKey =
@@ -122,6 +164,15 @@ export default function AppShell({
                 },
                 { type: "divider" },
                 {
+                  key: "change-password",
+                  icon: <LockOutlined />,
+                  label: "Đổi mật khẩu",
+                  onClick: () => {
+                    pwForm.resetFields();
+                    setPwOpen(true);
+                  },
+                },
+                {
                   key: "logout",
                   icon: <LogoutOutlined />,
                   label: "Đăng xuất",
@@ -146,6 +197,53 @@ export default function AppShell({
 
         <Content>{children}</Content>
       </Layout>
+
+      <Modal
+        title="Đổi mật khẩu"
+        open={pwOpen}
+        onOk={changePassword}
+        onCancel={() => setPwOpen(false)}
+        confirmLoading={pwSaving}
+        okText="Đổi mật khẩu"
+        cancelText="Hủy"
+        destroyOnHidden
+      >
+        <Form form={pwForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="currentPassword"
+            label="Mật khẩu hiện tại"
+            rules={[{ required: true, message: "Vui lòng nhập mật khẩu hiện tại" }]}
+          >
+            <Input.Password placeholder="Mật khẩu hiện tại" autoComplete="current-password" />
+          </Form.Item>
+          <Form.Item
+            name="newPassword"
+            label="Mật khẩu mới"
+            rules={[
+              { required: true, message: "Vui lòng nhập mật khẩu mới" },
+              { min: 6, message: "Mật khẩu mới phải có ít nhất 6 ký tự" },
+            ]}
+          >
+            <Input.Password placeholder="Mật khẩu mới" autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            label="Xác nhận mật khẩu mới"
+            dependencies={["newPassword"]}
+            rules={[
+              { required: true, message: "Vui lòng xác nhận mật khẩu mới" },
+              ({ getFieldValue }) => ({
+                validator: (_, value) =>
+                  !value || getFieldValue("newPassword") === value
+                    ? Promise.resolve()
+                    : Promise.reject(new Error("Xác nhận mật khẩu không khớp")),
+              }),
+            ]}
+          >
+            <Input.Password placeholder="Nhập lại mật khẩu mới" autoComplete="new-password" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Layout>
   );
 }

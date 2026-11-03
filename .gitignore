@@ -13,7 +13,6 @@ next-env.d.ts.bak
 .pgdata/
 *.db
 *.db-journal
-prisma/seed.ts
 
 # Env
 .env
