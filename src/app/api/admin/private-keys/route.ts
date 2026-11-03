@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { generatePrivateKeyCode } from "@/lib/private-key";
+import { collectIds } from "@/lib/ids";
 
 const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -103,12 +104,12 @@ export async function DELETE(req: Request) {
   try {
     await requireRole("ADMIN");
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    if (!id) {
+    const ids = collectIds(searchParams);
+    if (ids.length === 0) {
       return NextResponse.json({ error: "Thiếu id" }, { status: 400 });
     }
-    await prisma.privateKey.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
+    const res = await prisma.privateKey.deleteMany({ where: { id: { in: ids } } });
+    return NextResponse.json({ ok: true, deleted: res.count });
   } catch (e) {
     const status = (e as { code?: string }).code === "FORBIDDEN" ? 403 : 500;
     return NextResponse.json({ error: (e as Error).message }, { status });

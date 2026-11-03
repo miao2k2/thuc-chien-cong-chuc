@@ -33,6 +33,7 @@ import {
   ClockCircleOutlined,
 } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
+import BulkDeleteButton from "@/components/BulkDeleteButton";
 
 const { Text, Title } = Typography;
 
@@ -68,6 +69,7 @@ export default function PrivateKeysPage() {
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
   const [created, setCreated] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -200,7 +202,16 @@ export default function PrivateKeysPage() {
       <Card
         title="Quản lý Private key"
         extra={
-          <Space>
+          <Space wrap>
+            <BulkDeleteButton
+              selectedIds={selectedIds}
+              endpoint="/api/admin/private-keys"
+              label="private key"
+              onDone={() => {
+                setSelectedIds([]);
+                load();
+              }}
+            />
             <Button icon={<ReloadOutlined />} onClick={load}>
               Làm mới
             </Button>
@@ -221,6 +232,10 @@ export default function PrivateKeysPage() {
           rowKey="id"
           loading={loading}
           dataSource={keys}
+          rowSelection={{
+            selectedRowKeys: selectedIds,
+            onChange: (keys) => setSelectedIds(keys as string[]),
+          }}
           pagination={{ pageSize: 15, showSizeChanger: false }}
           columns={[
             {

@@ -28,6 +28,7 @@ import {
   KeyOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
+import BulkDeleteButton from "@/components/BulkDeleteButton";
 import { ROLE_LABEL } from "@/types/auth";
 
 const { Text } = Typography;
@@ -48,6 +49,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<UserRow | null>(null);
   const [open, setOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [form] = Form.useForm();
   const [detail, setDetail] = useState<UserRow | null>(null);
 
@@ -145,15 +147,31 @@ export default function AdminUsersPage() {
       <Card
         title="Danh sách tài khoản"
         extra={
-          <Button icon={<ReloadOutlined />} onClick={load}>
-            Làm mới
-          </Button>
+          <Space wrap>
+            <BulkDeleteButton
+              selectedIds={selectedIds}
+              endpoint="/api/admin/users"
+              label="tài khoản"
+              warning="Lịch sử làm bài của các tài khoản này cũng sẽ bị xóa. Private key đã dùng sẽ được trả về trạng thái còn hiệu lực."
+              onDone={() => {
+                setSelectedIds([]);
+                load();
+              }}
+            />
+            <Button icon={<ReloadOutlined />} onClick={load}>
+              Làm mới
+            </Button>
+          </Space>
         }
       >
         <Table
           rowKey="id"
           loading={loading}
           dataSource={users}
+          rowSelection={{
+            selectedRowKeys: selectedIds,
+            onChange: (keys) => setSelectedIds(keys as string[]),
+          }}
           pagination={{ pageSize: 15, showSizeChanger: false }}
           columns={[
             {

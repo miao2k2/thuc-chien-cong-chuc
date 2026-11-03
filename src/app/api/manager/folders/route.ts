@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getFolderTree } from "@/services/folder.service";
 import { z } from "zod";
+import { collectIds } from "@/lib/ids";
 
 export async function GET() {
   try {
@@ -149,10 +150,12 @@ export async function DELETE(req: Request) {
   try {
     await requireRole("MANAGER", "ADMIN");
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "Thiếu id" }, { status: 400 });
-    await prisma.folder.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
+    const ids = collectIds(searchParams);
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "Thiếu id" }, { status: 400 });
+    }
+    const res = await prisma.folder.deleteMany({ where: { id: { in: ids } } });
+    return NextResponse.json({ ok: true, deleted: res.count });
   } catch (e) {
     const status = (e as { code?: string }).code === "FORBIDDEN" ? 403 : 500;
     return NextResponse.json({ error: (e as Error).message }, { status });

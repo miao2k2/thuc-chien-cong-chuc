@@ -30,7 +30,7 @@ export default async function ManagerLayout({
         },
         {
           key: "categories",
-          label: "Category role",
+          label: "Danh mục",
           icon: <TagsOutlined />,
           href: "/manager/category-roles",
         },

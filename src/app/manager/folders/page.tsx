@@ -34,6 +34,7 @@ import {
   TagsOutlined,
   QuestionCircleOutlined,
 } from "@ant-design/icons";
+import BulkDeleteButton from "@/components/BulkDeleteButton";
 
 const { Text, Title } = Typography;
 
@@ -62,6 +63,7 @@ export default function FoldersPage() {
   const [categories, setCategories] = useState<CategoryRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<FolderNode | null>(null);
+  const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const [editing, setEditing] = useState<FolderNode | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -113,7 +115,7 @@ export default function FoldersPage() {
               overflowCount={9999}
             />
           )}
-          <Tooltip title="Category role hiệu lực (đã kế thừa)">
+          <Tooltip title="Danh mục hiệu lực (đã kế thừa)">
             <span style={{ marginLeft: 8 }}>
               {n.effectiveCategoryRoleIds.map((id) => (
                 <Tag
@@ -221,14 +223,27 @@ export default function FoldersPage() {
           <Card
             title="Cây thư mục"
             extra={
-              <Button
-                type="primary"
-                size="small"
-                icon={<PlusOutlined />}
-                onClick={() => openCreate(null)}
-              >
-                Thư mục gốc
-              </Button>
+              <Space wrap>
+                <BulkDeleteButton
+                  selectedIds={checkedKeys}
+                  endpoint="/api/manager/folders"
+                  label="thư mục"
+                  warning="Toàn bộ thư mục con và câu hỏi bên trong sẽ bị xóa."
+                  onDone={() => {
+                    setCheckedKeys([]);
+                    setSelected(null);
+                    load();
+                  }}
+                />
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<PlusOutlined />}
+                  onClick={() => openCreate(null)}
+                >
+                  Thư mục gốc
+                </Button>
+              </Space>
             }
           >
             {loading ? (
@@ -245,9 +260,12 @@ export default function FoldersPage() {
               <Tree
                 showIcon
                 blockNode
+                checkable
                 treeData={toTreeData(tree)}
                 expandedKeys={expandedKeys}
                 onExpand={(keys) => setExpandedKeys(keys as string[])}
+                checkedKeys={checkedKeys}
+                onCheck={(keys) => setCheckedKeys((keys as string[]) ?? [])}
                 selectedKeys={selected ? [selected.id] : []}
                 onSelect={(keys) => {
                   if (keys.length === 0) return;
@@ -303,7 +321,7 @@ export default function FoldersPage() {
                 <Descriptions.Item label="Số câu hỏi">
                   <Badge count={selected.questionCount} color="#1677ff" overflowCount={9999} />
                 </Descriptions.Item>
-                <Descriptions.Item label="Category role gắn trực tiếp">
+                <Descriptions.Item label="Danh mục gắn trực tiếp">
                   {selected.categoryRoleIds.length === 0 ? (
                     <Text type="secondary">—</Text>
                   ) : (
@@ -323,7 +341,7 @@ export default function FoldersPage() {
                     <Tag color="orange">Không — chỉ dùng role gắn trực tiếp</Tag>
                   )}
                 </Descriptions.Item>
-                <Descriptions.Item label="Category role hiệu lực (sau kế thừa)">
+                <Descriptions.Item label="Danh mục hiệu lực (sau kế thừa)">
                   {selected.effectiveCategoryRoleIds.length === 0 ? (
                     <Text type="secondary">—</Text>
                   ) : (
@@ -342,8 +360,8 @@ export default function FoldersPage() {
                 style={{ marginTop: 16 }}
                 type="info"
                 showIcon
-                message="Về kế thừa category role"
-                description="Nếu một thư mục con không chỉ định riêng, nó mặc định kế thừa toàn bộ category role của thư mục cha. Tắt 'Kế thừa' nếu muốn thư mục chỉ dùng các role gắn trực tiếp."
+                message="Về kế thừa danh mục"
+                description="Nếu một thư mục con không chỉ định riêng, nó mặc định kế thừa toàn bộ danh mục của thư mục cha. Tắt 'Kế thừa' nếu muốn thư mục chỉ dùng các danh mục gắn trực tiếp."
               />
             </Card>
           ) : (
@@ -385,12 +403,12 @@ export default function FoldersPage() {
           </Form.Item>
           <Form.Item
             name="categoryRoleIds"
-            label="Category role gắn trực tiếp"
-            extra="Có thể gắn một hoặc nhiều category role cho thư mục này"
+            label="Danh mục gắn trực tiếp"
+            extra="Có thể gắn một hoặc nhiều danh mục cho thư mục này"
           >
             <Select
               mode="multiple"
-              placeholder="Chọn category role"
+              placeholder="Chọn danh mục"
               options={categories.map((c) => ({
                 value: c.id,
                 label: c.name,
@@ -399,9 +417,9 @@ export default function FoldersPage() {
           </Form.Item>
           <Form.Item
             name="inheritCategoryRoles"
-            label="Kế thừa category role từ thư mục cha"
+            label="Kế thừa danh mục từ thư mục cha"
             valuePropName="checked"
-            extra="Bật (mặc định): thư mục con dùng role của cha. Tắt: chỉ dùng role gắn trực tiếp."
+            extra="Bật (mặc định): thư mục con dùng danh mục của cha. Tắt: chỉ dùng danh mục gắn trực tiếp."
           >
             <Switch />
           </Form.Item>

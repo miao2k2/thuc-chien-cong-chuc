@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Form, Input, Button, Card, Tabs, App, Divider, Alert } from "antd";
+import { Form, Input, Button, Card, Tabs, App, Alert } from "antd";
 import { UserOutlined, LockOutlined, KeyOutlined, MailOutlined } from "@ant-design/icons";
 
 export default function AuthPage() {
@@ -188,14 +188,6 @@ export default function AuthPage() {
           ]}
         />
 
-        <Divider plain style={{ margin: "16px 0" }}>
-          <span style={{ fontSize: 12, color: "#999" }}>Tài khoản dùng thử</span>
-        </Divider>
-        <div style={{ fontSize: 12, color: "#666", lineHeight: 1.8, textAlign: "center" }}>
-          <div>Admin: <b>seoao24@gmail.com</b> / <b>Abcd@1234</b></div>
-          <div>Manager: <b>manager@tccc.local</b> / <b>Abcd@1234</b></div>
-          <div>Guest: <b>guest@tccc.local</b> / <b>Abcd@1234</b></div>
-        </div>
         <div style={{ textAlign: "center", marginTop: 12, fontSize: 12 }}>
           <Link href="/login">Quên mật khẩu? Liên hệ quản trị viên</Link>
         </div>

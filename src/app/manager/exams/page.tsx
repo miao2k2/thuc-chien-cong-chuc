@@ -29,6 +29,7 @@ import {
   DeleteOutlined,
   FileTextOutlined,
 } from "@ant-design/icons";
+import BulkDeleteButton from "@/components/BulkDeleteButton";
 
 const { Text, Title } = Typography;
 
@@ -75,6 +76,7 @@ export default function ManagerExamsPage() {
   >([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Exam | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [form] = Form.useForm();
   const [mode, setMode] = useState<"RANDOM" | "FIXED">("RANDOM");
   const [rules, setRules] = useState<Rule[]>([
@@ -204,9 +206,20 @@ export default function ManagerExamsPage() {
       <Card
         title="Quản lý bài thi"
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            Tạo bài thi
-          </Button>
+          <Space wrap>
+            <BulkDeleteButton
+              selectedIds={selectedIds}
+              endpoint="/api/manager/exams"
+              label="bài thi"
+              onDone={() => {
+                setSelectedIds([]);
+                load();
+              }}
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              Tạo bài thi
+            </Button>
+          </Space>
         }
       >
         <Table
@@ -214,6 +227,10 @@ export default function ManagerExamsPage() {
           loading={loading}
           dataSource={exams}
           pagination={false}
+          rowSelection={{
+            selectedRowKeys: selectedIds,
+            onChange: (keys) => setSelectedIds(keys as string[]),
+          }}
           locale={{ emptyText: <Empty description="Chưa có bài thi nào" /> }}
           columns={[
             {

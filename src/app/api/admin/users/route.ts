@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { z } from "zod";
+import { collectIds } from "@/lib/ids";
 
 export async function GET() {
   try {
@@ -69,6 +70,41 @@ export async function PATCH(req: Request) {
         { status: 400 },
       );
     }
+    const status = (e as { code?: string }).code === "FORBIDDEN" ? 403 : 500;
+    return NextResponse.json({ error: (e as Error).message }, { status });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const admin = await requireRole("ADMIN");
+    const { searchParams } = new URL(req.url);
+    const ids = collectIds(searchParams);
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "Thiếu id" }, { status: 400 });
+    }
+    if (ids.includes(admin.id)) {
+      return NextResponse.json(
+        { error: "Không thể xóa tài khoản của chính mình" },
+        { status: 400 },
+      );
+    }
+
+    // trả lại private key về trạng thái ACTIVE cho các key đã dùng
+    const usedKeys = await prisma.privateKey.findMany({
+      where: { usedById: { in: ids }, status: "USED" },
+      select: { id: true },
+    });
+    if (usedKeys.length > 0) {
+      await prisma.privateKey.updateMany({
+        where: { id: { in: usedKeys.map((k) => k.id) } },
+        data: { status: "ACTIVE", usedById: null, usedAt: null },
+      });
+    }
+
+    const res = await prisma.user.deleteMany({ where: { id: { in: ids } } });
+    return NextResponse.json({ ok: true, deleted: res.count });
+  } catch (e) {
     const status = (e as { code?: string }).code === "FORBIDDEN" ? 403 : 500;
     return NextResponse.json({ error: (e as Error).message }, { status });
   }

@@ -32,6 +32,7 @@ import {
   FileExcelOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
+import BulkDeleteButton from "@/components/BulkDeleteButton";
 import type { QuestionType } from "@prisma/client";
 
 const { Text, Title } = Typography;
@@ -72,6 +73,7 @@ export default function ManagerQuestionsPage() {
   const [tree, setTree] = useState<FolderNode[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<QRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [form] = Form.useForm();
   const [watchType, setWatchType] = useState<QuestionType>("MCQ4");
   const [importOpen, setImportOpen] = useState(false);
@@ -348,6 +350,15 @@ export default function ManagerQuestionsPage() {
         title="Ngân hàng câu hỏi"
         extra={
           <Space wrap>
+            <BulkDeleteButton
+              selectedIds={selectedIds}
+              endpoint="/api/manager/questions"
+              label="câu hỏi"
+              onDone={() => {
+                setSelectedIds([]);
+                load();
+              }}
+            />
             <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>
               Import từ file
             </Button>
@@ -390,6 +401,10 @@ export default function ManagerQuestionsPage() {
           columns={columns}
           dataSource={data}
           loading={loading}
+          rowSelection={{
+            selectedRowKeys: selectedIds,
+            onChange: (keys) => setSelectedIds(keys as string[]),
+          }}
           pagination={{
             current: page,
             total,

@@ -5,6 +5,7 @@ import { createQuestion, updateQuestion, listQuestions } from "@/services/questi
 import { isValidationError } from "@/lib/errors";
 import { z } from "zod";
 import type { QuestionType } from "@prisma/client";
+import { collectIds } from "@/lib/ids";
 
 export async function GET(req: Request) {
   try {
@@ -83,10 +84,12 @@ export async function DELETE(req: Request) {
   try {
     await requireRole("MANAGER", "ADMIN");
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "Thiếu id" }, { status: 400 });
-    await prisma.question.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
+    const ids = collectIds(searchParams);
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "Thiếu id câu hỏi" }, { status: 400 });
+    }
+    const res = await prisma.question.deleteMany({ where: { id: { in: ids } } });
+    return NextResponse.json({ ok: true, deleted: res.count });
   } catch (e) {
     const status = (e as { code?: string }).code === "FORBIDDEN" ? 403 : 500;
     return NextResponse.json({ error: (e as Error).message }, { status });

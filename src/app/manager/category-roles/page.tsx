@@ -16,6 +16,7 @@ import {
   ColorPicker,
 } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import BulkDeleteButton from "@/components/BulkDeleteButton";
 
 const { Text } = Typography;
 
@@ -33,6 +34,7 @@ export default function CategoryRolesPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CategoryRole | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [form] = Form.useForm();
 
   const load = useCallback(async () => {
@@ -99,22 +101,38 @@ export default function CategoryRolesPage() {
   return (
     <div className="page-container">
       <Card
-        title="Quản lý Category Role"
+        title="Quản lý Danh mục"
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            Tạo category role
-          </Button>
+          <Space wrap>
+            <BulkDeleteButton
+              selectedIds={selectedIds}
+              endpoint="/api/manager/category-roles"
+              label="danh mục"
+              warning="Các thư mục đang gắn danh mục sẽ mất liên kết."
+              onDone={() => {
+                setSelectedIds([]);
+                load();
+              }}
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              Tạo danh mục
+            </Button>
+          </Space>
         }
       >
         <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-          Category role dùng để phân loại thư mục. Mỗi thư mục có thể gắn một hoặc nhiều category
-          role. Thư mục con sẽ mặc định kế thừa các role của thư mục cha.
+          Danh mục dùng để phân loại thư mục. Mỗi thư mục có thể gắn một hoặc nhiều danh mục.
+          Thư mục con sẽ mặc định kế thừa các danh mục của thư mục cha.
         </Text>
         <Table
           rowKey="id"
           loading={loading}
           dataSource={items}
           pagination={false}
+          rowSelection={{
+            selectedRowKeys: selectedIds,
+            onChange: (keys) => setSelectedIds(keys as string[]),
+          }}
           columns={[
             {
               title: "Tên",
@@ -147,8 +165,8 @@ export default function CategoryRolesPage() {
                 <Space>
                   <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)} />
                   <Popconfirm
-                    title="Xóa category role?"
-                    description="Các thư mục đang gắn role này sẽ mất liên kết."
+                    title="Xóa danh mục này?"
+                    description="Các thư mục đang gắn danh mục này sẽ mất liên kết."
                     okText="Xóa"
                     cancelText="Hủy"
                     okButtonProps={{ danger: true }}
@@ -164,7 +182,7 @@ export default function CategoryRolesPage() {
       </Card>
 
       <Modal
-        title={editing ? "Cập nhật category role" : "Tạo category role"}
+        title={editing ? "Cập nhật danh mục" : "Tạo danh mục"}
         open={open}
         onOk={save}
         onCancel={() => setOpen(false)}
