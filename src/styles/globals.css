@@ -1,0 +1,50 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: #f0f2f5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page-container {
+  padding: 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
+.site-logo {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.exam-question-card {
+  margin-bottom: 16px;
+}
+
+.exam-timer {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.result-stat-card {
+  text-align: center;
+}

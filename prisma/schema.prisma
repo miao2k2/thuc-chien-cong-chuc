@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Roles & users
+// ============================================================
+
+enum UserRole {
+  GUEST
+  MANAGER
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  fullName     String?
+  role         UserRole  @default(GUEST)
+  isLocked     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  privateKeys  PrivateKey[]
+  attempts     ExamAttempt[]
+  createdFolders Folder[]   @relation("FolderCreatedBy")
+  createdQuestions Question[] @relation("QuestionCreatedBy")
+  createdExams  ExamTemplate[] @relation("ExamTemplateCreatedBy")
+
+  @@index([role])
+  @@map("users")
+}
+
+// ============================================================
+// Private keys (gói / subscription) do admin quản lý
+// ============================================================
+
+enum PrivateKeyStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  USED
+}
+
+model PrivateKey {
+  id          String            @id @default(cuid())
+  code        String            @unique
+  note        String?
+  status      PrivateKeyStatus  @default(ACTIVE)
+  expiresAt   DateTime
+  usedById    String?
+  usedBy      User?             @relation(fields: [usedById], references: [id], onDelete: SetNull)
+  usedAt      DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([status])
+  @@index([expiresAt])
+  @@map("private_keys")
+}
+
+// ============================================================
+// Folder tree + category roles
+// ============================================================
+
+model Folder {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  parentId    String?
+  parent      Folder?   @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Folder[]  @relation("FolderTree")
+  sortOrder   Int       @default(0)
+  createdById String?
+  createdBy   User?     @relation("FolderCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // category role gắn trực tiếp với folder này
+  categoryRoles FolderCategoryRole[]
+  // đánh dấu "kế thừa" => dùng categoryRoles của folder cha
+  inheritCategoryRoles Boolean @default(true)
+
+  questions   Question[]
+  examFolders ExamTemplateFolder[]
+  rules       ExamTemplateRule[]
+
+  @@unique([parentId, name])
+  @@index([parentId])
+  @@map("folders")
+}
+
+model CategoryRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  folders FolderCategoryRole[]
+  exams   ExamTemplateCategoryRole[]
+  rules   ExamTemplateRule[]
+
+  @@map("category_roles")
+}
+
+model FolderCategoryRole {
+  folderId       String
+  categoryRoleId String
+  folder         Folder       @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  categoryRole   CategoryRole @relation(fields: [categoryRoleId], references: [id], onDelete: Cascade)
+
+  @@id([folderId, categoryRoleId])
+  @@map("folder_category_roles")
+}
+
+// ============================================================
+// Questions
+// ============================================================
+
+enum QuestionType {
+  MCQ4 // trắc nghiệm 4 đáp án, chọn 1 đáp án đúng
+  TRUE_FALSE // trắc nghiệm đúng sai, mỗi câu có 2 ý, mỗi ý đúng hoặc sai
+  FILL_BLANK // điền nội dung còn thiếu
+}
+
+model Question {
+  id          String       @id @default(cuid())
+  content     String
+  description String? // trích dẫn / giải thích cho đáp án đúng (ẩn khi thi)
+  type        QuestionType
+  folderId    String
+  folder      Folder       @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  createdById String?
+  createdBy   User?        @relation("QuestionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  options QuestionOption[]
+  blanks  QuestionBlank[]
+  examItems ExamItem[]
+  answers   Answer[]
+
+  @@index([folderId])
+  @@index([type])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label      String
+  isCorrect  Boolean  @default(false)
+  sortOrder  Int      @default(0)
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+model QuestionBlank {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label      String // ví dụ "A", "B" — mỗi ý của câu đúng sai
+  isCorrect  Boolean  @default(false)
+  sortOrder  Int      @default(0)
+
+  @@index([questionId])
+  @@map("question_blanks")
+}
+
+// ============================================================
+// Exam templates (bài thi sẵn có do manager tạo)
+// ============================================================
+
+model ExamTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  durationMin Int? // thời gian (phút), null = không giới hạn
+  isPublished Boolean  @default(true)
+  createdById String?
+  createdBy   User?    @relation("ExamTemplateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // chế độ chọn câu hỏi
+  // FIXED  : chỉ định từng câu hỏi
+  // RANDOM : lấy ngẫu nhiên theo số lượng theo từng mục / từng loại
+  mode        ExamMode @default(RANDOM)
+  // quy tắc lấy ngẫu nhiên
+  rules       ExamTemplateRule[]
+  folders     ExamTemplateFolder[]
+  items       ExamItem[]
+  categoryRoles ExamTemplateCategoryRole[]
+  attempts    ExamAttempt[]
+
+  @@index([isPublished])
+  @@map("exam_templates")
+}
+
+enum ExamMode {
+  FIXED
+  RANDOM
+}
+
+model ExamTemplateRule {
+  id             String       @id @default(cuid())
+  examTemplateId String
+  examTemplate   ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  folderId       String?
+  folder         Folder?      @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  categoryRoleId String?
+  categoryRole   CategoryRole? @relation(fields: [categoryRoleId], references: [id], onDelete: Cascade)
+  type           QuestionType?
+  quantity       Int
+
+  @@index([examTemplateId])
+  @@map("exam_template_rules")
+}
+
+model ExamTemplateFolder {
+  examTemplateId String
+  folderId       String
+  examTemplate   ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  folder         Folder       @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@id([examTemplateId, folderId])
+  @@map("exam_template_folders")
+}
+
+model ExamTemplateCategoryRole {
+  examTemplateId String
+  categoryRoleId String
+  examTemplate   ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  categoryRole   CategoryRole @relation(fields: [categoryRoleId], references: [id], onDelete: Cascade)
+
+  @@id([examTemplateId, categoryRoleId])
+  @@map("exam_template_category_roles")
+}
+
+model ExamItem {
+  id             String       @id @default(cuid())
+  examTemplateId String
+  examTemplate   ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  questionId     String
+  question       Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  sortOrder      Int          @default(0)
+
+  @@unique([examTemplateId, questionId])
+  @@map("exam_items")
+}
+
+// ============================================================
+// Attempts (một lần làm bài)
+// ============================================================
+
+model ExamAttempt {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examTemplateId String?
+  examTemplate   ExamTemplate? @relation(fields: [examTemplateId], references: [id], onDelete: SetNull)
+  title          String
+  durationMin    Int?
+  startedAt      DateTime     @default(now())
+  submittedAt    DateTime?
+  expiredAt      DateTime?
+  // câu hỏi đã snapshot khi bắt đầu làm bài
+  snapshot       Json
+  totalScore     Float        @default(0)
+  correctCount   Int          @default(0)
+  wrongCount     Int          @default(0)
+
+  answers Answer[]
+
+  @@index([userId])
+  @@map("exam_attempts")
+}
+
+model Answer {
+  id         String      @id @default(cuid())
+  attemptId  String
+  attempt    ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  // MCQ4: chọn đúng optionId | TRUE_FALSE: chọn đúng blankId | FILL_BLANK: text
+  selectedOptionId String?
+  selectedBlankId  String?
+  textAnswer       String?
+  isCorrect        Boolean @default(false)
+  folderId         String?
+
+  @@index([attemptId])
+  @@map("answers")
+}
